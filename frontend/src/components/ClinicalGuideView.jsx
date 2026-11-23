@@ -158,12 +158,12 @@ export default function ClinicalGuideView() {
             <span>3. Digital Caliper &amp; Volumetric Standards</span>
           </div>
           <p className="text-xs text-slate-300 leading-relaxed">
-            The platform is calibrated to standardized DICOM pixel spacing ($0.9375\text{ mm/pixel}$).
-            Two-point cross-sectional calipers measure the maximal orthogonal lesion dimensions ($d_1, d_2$).
+            The platform is calibrated to standardized DICOM pixel spacing (0.9375 mm/pixel).
+            Two-point cross-sectional calipers measure the maximal orthogonal lesion dimensions (d1, d2).
           </p>
           <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-cyan-300 space-y-1">
-            <div>Distance (mm) = &radic;[(x&sub2; - x&sub1;)&sup2; + (y&sub2; - y&sub1;)&sup2;] &times; 0.9375</div>
-            <div>3D Ellipsoid Vol (cm&sup3;) = (&pi; / 6) &times; d&sub1; &times; d&sub2; &times; d&sub3; / 1000</div>
+            <div>Distance (mm) = √[(x₂ - x₁)² + (y₂ - y₁)²] × 0.9375</div>
+            <div>3D Ellipsoid Vol (cm³) = (π / 6) × d₁ × d₂ × d₃ / 1000</div>
           </div>
           <p className="text-[11px] text-slate-400">
             Automated morphology segments <strong>Enhancing Tumor Core (ET)</strong>, <strong>Peritumoral Edema (ED)</strong>, and <strong>Central Necrosis (NCR)</strong> in line with BraTS consensus.

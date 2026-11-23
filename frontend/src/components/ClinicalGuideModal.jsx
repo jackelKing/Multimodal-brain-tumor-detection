@@ -142,12 +142,12 @@ export default function ClinicalGuideModal({ isOpen, onClose }) {
             </div>
             <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
               <p className="text-[11px] text-slate-300 leading-relaxed">
-                Neuroimaging dimensions are calibrated to standardized DICOM pixel spacing ($0.9375\text{ mm/pixel}$).
+                Neuroimaging dimensions are calibrated to standardized DICOM pixel spacing (0.9375 mm/pixel).
                 When measuring cross-sectional diameter with the two-point caliper:
               </p>
               <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 font-mono text-[11px] text-cyan-300">
-                d = &radic;[(x&sub2; - x&sub1;)&sup2; + (y&sub2; - y&sub1;)&sup2;] &times; 0.9375 mm<br/>
-                Volume (cm&sup3;) = (&pi; / 6) &times; d&sup3; / 1000
+                d = √[(x₂ - x₁)² + (y₂ - y₁)²] × 0.9375 mm<br/>
+                Volume (cm³) = (π / 6) × d³ / 1000
               </div>
               <p className="text-[11px] text-slate-400">
                 Compartmental masks delineate <strong>Enhancing Tumor Core (ET)</strong>, <strong>Peritumoral Edema (ED)</strong>, and <strong>Central Necrosis (NCR)</strong> in compliance with BraTS consensus standards.
