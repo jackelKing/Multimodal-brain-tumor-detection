@@ -1,0 +1,64 @@
+{
+  "accuracy": 0.8575,
+  "detection_accuracy": 0.9625,
+  "grade_accuracy": 0.875,
+  "macro_f1": 0.8499,
+  "weighted_f1": 0.8499,
+  "per_class_metrics": {
+    "Glioma": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 100.0
+    },
+    "Meningioma": {
+      "precision": 0.8142857142857143,
+      "recall": 0.57,
+      "f1-score": 0.6705882352941176,
+      "support": 100.0
+    },
+    "No Tumor (Healthy)": {
+      "precision": 0.8547008547008547,
+      "recall": 1.0,
+      "f1-score": 0.9216589861751152,
+      "support": 100.0
+    },
+    "Pituitary Tumor": {
+      "precision": 0.7610619469026548,
+      "recall": 0.86,
+      "f1-score": 0.8075117370892019,
+      "support": 100.0
+    }
+  },
+  "modality_contributions_pct": {
+    "CNN Visual Representation": 33.49,
+    "GNN Tissue Topology": 33.34,
+    "Clinical & Biomarkers": 33.17
+  },
+  "confusion_matrix": [
+    [
+      100,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      57,
+      16,
+      27
+    ],
+    [
+      0,
+      0,
+      100,
+      0
+    ],
+    [
+      0,
+      13,
+      1,
+      86
+    ]
+  ]
+}

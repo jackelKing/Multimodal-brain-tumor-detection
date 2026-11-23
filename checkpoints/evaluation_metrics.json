@@ -1,0 +1,85 @@
+{
+  "best_metrics": {
+    "loss": 0.6307765864408933,
+    "accuracy": 0.895,
+    "precision": 0.901930868249654,
+    "recall": 0.895,
+    "f1_score": 0.8913888617925833,
+    "detection_accuracy": 0.95,
+    "grade_accuracy": 0.855,
+    "confusion_matrix": [
+      [
+        50,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        34,
+        10,
+        6
+      ],
+      [
+        0,
+        0,
+        50,
+        0
+      ],
+      [
+        0,
+        3,
+        2,
+        45
+      ]
+    ]
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 2.0302786074186625,
+      "train_acc": 0.71,
+      "val_loss": 1.8105788414294903,
+      "val_acc": 0.85,
+      "val_f1": 0.8498379837983799
+    },
+    {
+      "epoch": 2,
+      "train_loss": 1.1991234437415474,
+      "train_acc": 0.935,
+      "val_loss": 1.0379993457060595,
+      "val_acc": 0.885,
+      "val_f1": 0.8810925735430686
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.6460689917991036,
+      "train_acc": 0.9666666666666667,
+      "val_loss": 0.7238788833984962,
+      "val_acc": 0.89,
+      "val_f1": 0.8847490347490347
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.4181121646573669,
+      "train_acc": 0.9833333333333333,
+      "val_loss": 0.6307765864408933,
+      "val_acc": 0.895,
+      "val_f1": 0.8913888617925833
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.3159820825645798,
+      "train_acc": 0.985,
+      "val_loss": 0.570734285391294,
+      "val_acc": 0.89,
+      "val_f1": 0.885771439529274
+    }
+  ],
+  "classes": [
+    "Glioma",
+    "Meningioma",
+    "No Tumor (Healthy)",
+    "Pituitary Tumor"
+  ]
+}
