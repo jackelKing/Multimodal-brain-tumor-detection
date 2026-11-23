@@ -1,6 +1,6 @@
 """
-Training Pipeline for Multimodal CNN-GNN Brain Tumor Model.
-Executes multi-task training (Classification, Detection, Grade Prediction) with metric tracking.
+High-Accuracy Training Pipeline for Multimodal CNN-GNN Brain Tumor Model.
+Uses Multi-Head Cross-Modal Transformer Fusion, Label Smoothing, and Cosine Annealing.
 """
 import os
 import json
@@ -19,7 +19,6 @@ from src.config import (
     BATCH_SIZE,
     LEARNING_RATE,
     WEIGHT_DECAY,
-    NUM_EPOCHS,
     CHECKPOINT_DIR,
     IDX_TO_CLASS
 )
@@ -27,38 +26,41 @@ from src.dataset.dataset_builder import MultimodalBrainTumorDataset, multimodal_
 from src.models.multimodal_fusion import MultimodalBrainTumorNet
 
 
-class MultimodalTrainer:
-    """Trains the unified CNN + GNN + Clinical fusion model on brain tumor datasets."""
+class HighAccuracyMultimodalTrainer:
+    """Trains the cross-modal transformer fusion network for superior accuracy."""
     def __init__(
         self,
-        model: Optional[MultimodalBrainTumorNet] = None,
         device: torch.device = DEVICE,
         checkpoint_dir: Path = CHECKPOINT_DIR
     ):
         self.device = device
         self.checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        self.model = (model or MultimodalBrainTumorNet(pretrained_cnn=True)).to(self.device)
+        self.model = MultimodalBrainTumorNet(pretrained_cnn=True).to(self.device)
 
-        # Loss functions
-        self.criterion_cls = nn.CrossEntropyLoss()
-        self.criterion_det = nn.CrossEntropyLoss()
-        self.criterion_grade = nn.CrossEntropyLoss()
+        # High-accuracy loss functions with label smoothing
+        self.criterion_cls = nn.CrossEntropyLoss(label_smoothing=0.05)
+        self.criterion_det = nn.CrossEntropyLoss(label_smoothing=0.05)
+        self.criterion_grade = nn.CrossEntropyLoss(label_smoothing=0.05)
 
-        # Optimizer
-        self.optimizer = optim.AdamW(
-            self.model.parameters(),
-            lr=LEARNING_RATE,
-            weight_decay=WEIGHT_DECAY
-        )
+        # Differential learning rates: smaller for pretrained CNN backbone, higher for GNN and Fusion
+        cnn_params = list(self.model.cnn.parameters())
+        other_params = [
+            p for n, p in self.model.named_parameters() if not n.startswith("cnn.")
+        ]
 
-    def train_epoch(self, dataloader: DataLoader) -> Dict[str, float]:
+        self.optimizer = optim.AdamW([
+            {"params": cnn_params, "lr": LEARNING_RATE * 0.5, "weight_decay": WEIGHT_DECAY},
+            {"params": other_params, "lr": LEARNING_RATE * 1.5, "weight_decay": WEIGHT_DECAY}
+        ])
+
+    def train_epoch(self, dataloader: DataLoader, scheduler=None) -> Dict[str, float]:
         self.model.train()
         total_loss = 0.0
         all_preds = []
         all_targets = []
 
-        for batch_idx, batch in enumerate(dataloader):
+        for batch in dataloader:
             images = batch["images"].to(self.device)
             graphs = batch["graphs"].to(self.device)
             clinicals = batch["clinicals"].to(self.device)
@@ -74,10 +76,9 @@ class MultimodalTrainer:
             loss_det = self.criterion_det(outputs["detection_logits"], binary_labels)
             loss_grade = self.criterion_grade(outputs["grade_logits"], grade_labels)
 
-            # Combined multi-task loss
-            loss = loss_cls + 0.5 * loss_det + 0.5 * loss_grade
+            loss = loss_cls + 0.35 * loss_det + 0.35 * loss_grade
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=2.0)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.5)
             self.optimizer.step()
 
             total_loss += loss.item()
@@ -85,11 +86,11 @@ class MultimodalTrainer:
             all_preds.extend(preds)
             all_targets.extend(labels.cpu().numpy())
 
+        if scheduler:
+            scheduler.step()
+
         acc = accuracy_score(all_targets, all_preds)
-        return {
-            "loss": total_loss / len(dataloader),
-            "accuracy": acc
-        }
+        return {"loss": total_loss / len(dataloader), "accuracy": acc}
 
     def evaluate(self, dataloader: DataLoader) -> Dict[str, Any]:
         self.model.eval()
@@ -115,7 +116,7 @@ class MultimodalTrainer:
                 loss_cls = self.criterion_cls(outputs["class_logits"], labels)
                 loss_det = self.criterion_det(outputs["detection_logits"], binary_labels)
                 loss_grade = self.criterion_grade(outputs["grade_logits"], grade_labels)
-                loss = loss_cls + 0.5 * loss_det + 0.5 * loss_grade
+                loss = loss_cls + 0.35 * loss_det + 0.35 * loss_grade
 
                 total_loss += loss.item()
 
@@ -150,41 +151,32 @@ class MultimodalTrainer:
     def train(
         self,
         num_epochs: int = 5,
-        max_samples_train: Optional[int] = 200,
+        max_samples_train: Optional[int] = 500,
         max_samples_test: Optional[int] = 100,
         save_name: str = "multimodal_brain_tumor_net.pth"
     ) -> Dict[str, Any]:
-        """
-        Runs the training routine over train and test sets.
-        Uses sample capping to ensure fast, efficient training while demonstrating state-of-the-art multimodal fusion.
-        """
-        print(f"[Trainer] Initializing datasets on device: {self.device}...")
+        print(f"[HighAccuracyTrainer] Loading dataset on device: {self.device}...")
         train_ds = MultimodalBrainTumorDataset(split="train", max_samples_per_class=max_samples_train)
         test_ds = MultimodalBrainTumorDataset(split="test", max_samples_per_class=max_samples_test)
 
         train_loader = DataLoader(
-            train_ds,
-            batch_size=BATCH_SIZE,
-            shuffle=True,
-            collate_fn=multimodal_collate_fn,
-            drop_last=False
+            train_ds, batch_size=BATCH_SIZE, shuffle=True, collate_fn=multimodal_collate_fn
         )
         test_loader = DataLoader(
-            test_ds,
-            batch_size=BATCH_SIZE,
-            shuffle=False,
-            collate_fn=multimodal_collate_fn
+            test_ds, batch_size=BATCH_SIZE, shuffle=False, collate_fn=multimodal_collate_fn
         )
+
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=num_epochs, eta_min=1e-6)
 
         best_f1 = 0.0
         best_metrics = {}
         history = []
 
-        print(f"[Trainer] Commencing training for {num_epochs} epochs ({len(train_ds)} train samples, {len(test_ds)} test samples)...")
+        print(f"[HighAccuracyTrainer] Training for {num_epochs} epochs ({len(train_ds)} train, {len(test_ds)} test)...")
 
         for epoch in range(1, num_epochs + 1):
             t0 = time.time()
-            train_res = self.train_epoch(train_loader)
+            train_res = self.train_epoch(train_loader, scheduler)
             eval_res = self.evaluate(test_loader)
             elapsed = time.time() - t0
 
@@ -192,7 +184,7 @@ class MultimodalTrainer:
                 f"Epoch [{epoch}/{num_epochs}] ({elapsed:.1f}s) | "
                 f"Train Loss: {train_res['loss']:.4f}, Train Acc: {train_res['accuracy']*100:.1f}% | "
                 f"Val Loss: {eval_res['loss']:.4f}, Val Acc: {eval_res['accuracy']*100:.1f}%, "
-                f"Val F1: {eval_res['f1_score']:.4f}, Det Acc: {eval_res['detection_accuracy']*100:.1f}%"
+                f"Val F1: {eval_res['f1_score']:.4f}, Det Acc: {eval_res['detection_accuracy']*100:.1f}%, Grade Acc: {eval_res['grade_accuracy']*100:.1f}%"
             )
 
             history.append({
@@ -216,7 +208,6 @@ class MultimodalTrainer:
                 }, save_path)
                 print(f" -> Checkpoint saved with Best Val F1: {best_f1:.4f} to {save_path.name}")
 
-        # Save metrics JSON
         metrics_file = self.checkpoint_dir / "evaluation_metrics.json"
         with open(metrics_file, "w") as f:
             json.dump({
@@ -225,11 +216,9 @@ class MultimodalTrainer:
                 "classes": [IDX_TO_CLASS[i] for i in range(4)]
             }, f, indent=2)
 
-        print(f"[Trainer] Training successfully concluded! Metrics saved to {metrics_file}")
         return best_metrics
 
 
 if __name__ == "__main__":
-    trainer = MultimodalTrainer()
-    metrics = trainer.train(num_epochs=3, max_samples_train=100, max_samples_test=50)
-    print("Final Evaluated Metrics:", metrics)
+    trainer = HighAccuracyMultimodalTrainer()
+    trainer.train(num_epochs=5, max_samples_train=400, max_samples_test=100)

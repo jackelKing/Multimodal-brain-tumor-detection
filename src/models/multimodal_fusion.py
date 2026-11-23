@@ -1,6 +1,7 @@
 """
-Multimodal CNN-GNN-Clinical Fusion Model for Brain Tumor Detection, Classification, and Grade Prediction.
-Integrates visual convolutional features, spatial topological graph connectivity, and clinical biomarkers.
+Cross-Modal Transformer Attention Fusion Network for Brain Tumor Diagnosis.
+Fuses CNN visual features, GNN topological graph reasoning, and clinical biomarkers
+via Multi-Head Cross-Modal Attention and Gated Bilinear Projections.
 """
 import torch
 import torch.nn as nn
@@ -22,25 +23,48 @@ from src.config import (
 )
 
 
-class GatedMultimodalFusion(nn.Module):
-    """Gated Cross-Modal Fusion mechanism dynamically weighting visual, graph, and clinical modalities."""
-    def __init__(self, cnn_dim: int, gnn_dim: int, clin_dim: int, fused_dim: int):
+class CrossModalAttentionFusion(nn.Module):
+    """
+    Multi-Head Cross-Modal Attention Transformer Block.
+    Tokens: [Visual CNN, Topological GNN, Clinical Prior].
+    Allows reciprocal information exchange between neuroimaging textures,
+    tissue connectivity graphs, and patient molecular biomarkers.
+    """
+    def __init__(self, cnn_dim: int, gnn_dim: int, clin_dim: int, embed_dim: int = 256, n_heads: int = 4):
         super().__init__()
-        # Modal gating networks
-        self.gate_cnn = nn.Sequential(nn.Linear(cnn_dim, cnn_dim), nn.Sigmoid())
-        self.gate_gnn = nn.Sequential(nn.Linear(gnn_dim, gnn_dim), nn.Sigmoid())
-        self.gate_clin = nn.Sequential(nn.Linear(clin_dim, clin_dim), nn.Sigmoid())
+        self.embed_dim = embed_dim
 
-        # Joint projection network
-        total_in = cnn_dim + gnn_dim + clin_dim
-        self.fusion_fc = nn.Sequential(
-            nn.Linear(total_in, fused_dim),
-            nn.BatchNorm1d(fused_dim),
+        # Project all modalities into unified token dimension
+        self.proj_cnn = nn.Linear(cnn_dim, embed_dim)
+        self.proj_gnn = nn.Linear(gnn_dim, embed_dim)
+        self.proj_clin = nn.Linear(clin_dim, embed_dim)
+
+        # Learnable modality position/type embeddings
+        self.modality_embed = nn.Parameter(torch.randn(1, 3, embed_dim) * 0.02)
+
+        # Multi-Head Cross-Modal Attention
+        self.mha = nn.MultiheadAttention(embed_dim=embed_dim, num_heads=n_heads, batch_first=True, dropout=0.1)
+        self.ln1 = nn.LayerNorm(embed_dim)
+
+        # Feedforward network
+        self.ffn = nn.Sequential(
+            nn.Linear(embed_dim, embed_dim * 2),
+            nn.GELU(),
+            nn.Dropout(0.15),
+            nn.Linear(embed_dim * 2, embed_dim)
+        )
+        self.ln2 = nn.LayerNorm(embed_dim)
+
+        # Gated bilinear fusion
+        self.gate_cnn = nn.Sequential(nn.Linear(embed_dim, embed_dim), nn.Sigmoid())
+        self.gate_gnn = nn.Sequential(nn.Linear(embed_dim, embed_dim), nn.Sigmoid())
+        self.gate_clin = nn.Sequential(nn.Linear(embed_dim, embed_dim), nn.Sigmoid())
+
+        self.out_proj = nn.Sequential(
+            nn.Linear(embed_dim * 3, embed_dim),
+            nn.BatchNorm1d(embed_dim),
             nn.LeakyReLU(0.1, inplace=True),
-            nn.Dropout(0.3),
-            nn.Linear(fused_dim, fused_dim),
-            nn.BatchNorm1d(fused_dim),
-            nn.LeakyReLU(0.1, inplace=True)
+            nn.Dropout(0.2)
         )
 
     def forward(
@@ -49,24 +73,45 @@ class GatedMultimodalFusion(nn.Module):
         h_gnn: torch.Tensor,
         h_clin: torch.Tensor
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-        # Compute dynamic modal gates
-        g_c = self.gate_cnn(h_cnn)
-        g_g = self.gate_gnn(h_gnn)
-        g_cl = self.gate_clin(h_clin)
+        B = h_cnn.shape[0]
 
-        # Modulated features
-        mod_cnn = h_cnn * g_c
-        mod_gnn = h_gnn * g_g
-        mod_clin = h_clin * g_cl
+        # 1. Project to common embedding dimension
+        t_c = self.proj_cnn(h_cnn).unsqueeze(1)    # [B, 1, embed_dim]
+        t_g = self.proj_gnn(h_gnn).unsqueeze(1)    # [B, 1, embed_dim]
+        t_cl = self.proj_clin(h_clin).unsqueeze(1) # [B, 1, embed_dim]
 
-        # Concatenate and project to joint multimodal latent space
-        fused_concat = torch.cat([mod_cnn, mod_gnn, mod_clin], dim=1)
-        z_fused = self.fusion_fc(fused_concat)
+        # 2. Token sequence: [B, 3, embed_dim]
+        tokens = torch.cat([t_c, t_g, t_cl], dim=1) + self.modality_embed
+
+        # 3. Cross-Modal Attention
+        attn_out, _ = self.mha(tokens, tokens, tokens)
+        tokens = self.ln1(tokens + attn_out)
+
+        # 4. Feedforward
+        ffn_out = self.ffn(tokens)
+        tokens = self.ln2(tokens + ffn_out)
+
+        # 5. Extract attended modality representations
+        c_att = tokens[:, 0, :]
+        g_att = tokens[:, 1, :]
+        cl_att = tokens[:, 2, :]
+
+        # Gating
+        gc = self.gate_cnn(c_att)
+        gg = self.gate_gnn(g_att)
+        gcl = self.gate_clin(cl_att)
+
+        mod_c = c_att * gc
+        mod_g = g_att * gg
+        mod_cl = cl_att * gcl
+
+        fused = torch.cat([mod_c, mod_g, mod_cl], dim=1) # [B, embed_dim * 3]
+        z_fused = self.out_proj(fused)                   # [B, embed_dim]
 
         gate_weights = {
-            "cnn_gate": g_c.mean(dim=1),
-            "gnn_gate": g_g.mean(dim=1),
-            "clinical_gate": g_cl.mean(dim=1)
+            "cnn_gate": gc.mean(dim=1),
+            "gnn_gate": gg.mean(dim=1),
+            "clinical_gate": gcl.mean(dim=1)
         }
 
         return z_fused, gate_weights
@@ -74,12 +119,12 @@ class GatedMultimodalFusion(nn.Module):
 
 class MultimodalBrainTumorNet(nn.Module):
     """
-    Complete Multimodal Neural Network combining:
-      1. CNN Backbone: MRI spatial feature maps and global representation
-      2. GNN Backbone: Graph neural network on tissue patch topology
-      3. Clinical MLP: Patient biomarker & symptom encoder
-      4. Gated Multimodal Fusion
-      5. Multi-Task Heads: Binary Detection, 4-Class Classification, WHO Grade Prediction
+    Advanced Multimodal Neural Network combining:
+      1. CNN (ResNet18) for high-resolution visual feature maps & Grad-CAM
+      2. GNN (GATv2 Multi-Head) for topological tissue connectivity
+      3. Clinical MLP for molecular biomarkers & neurological history
+      4. Cross-Modal Transformer Attention Fusion
+      5. Multi-Task Heads: Detection, 4-Class Classification, WHO Grade Prediction
     """
     def __init__(
         self,
@@ -92,31 +137,26 @@ class MultimodalBrainTumorNet(nn.Module):
         pretrained_cnn: bool = True
     ):
         super().__init__()
-        # 1. Modality encoders
         self.cnn = BrainTumorCNN(embedding_dim=cnn_dim, pretrained=pretrained_cnn)
-        self.gnn = BrainTumorGNN(in_channels=64, hidden_dim=gnn_dim, out_dim=gnn_dim, use_attention=True)
+        self.gnn = BrainTumorGNN(in_channels=64, hidden_dim=gnn_dim, out_dim=gnn_dim, heads=4)
         self.clinical_encoder = ClinicalMLP(in_features=CLINICAL_FEATURE_DIM, hidden_dim=clin_dim, out_dim=clin_dim)
 
-        # 2. Multimodal Fusion
-        self.fusion = GatedMultimodalFusion(cnn_dim, gnn_dim, clin_dim, fused_dim)
+        self.fusion = CrossModalAttentionFusion(cnn_dim, gnn_dim, clin_dim, embed_dim=fused_dim, n_heads=4)
 
-        # 3. Multi-Task Diagnostic Prediction Heads
-        # Head A: Detection (Tumor vs Normal)
+        # Multi-Task Diagnostic Heads
         self.detection_head = nn.Sequential(
             nn.Linear(fused_dim, 64),
             nn.LeakyReLU(0.1, inplace=True),
             nn.Linear(64, 2)
         )
 
-        # Head B: 4-Class Classification (Glioma, Meningioma, No Tumor, Pituitary)
         self.classification_head = nn.Sequential(
             nn.Linear(fused_dim, 128),
             nn.LeakyReLU(0.1, inplace=True),
-            nn.Dropout(0.2),
+            nn.Dropout(0.25),
             nn.Linear(128, num_classes)
         )
 
-        # Head C: Prognostic WHO Histological Grade Prediction (Grade I - IV)
         self.grade_head = nn.Sequential(
             nn.Linear(fused_dim, 64),
             nn.LeakyReLU(0.1, inplace=True),
@@ -129,31 +169,12 @@ class MultimodalBrainTumorNet(nn.Module):
         graphs: Batch,
         clinicals: torch.Tensor
     ) -> Dict[str, torch.Tensor]:
-        """
-        Full forward pass through all modalities and heads.
-        Returns dictionary containing:
-          - class_logits: [B, 4]
-          - detection_logits: [B, 2]
-          - grade_logits: [B, 4]
-          - cnn_emb: [B, cnn_dim]
-          - gnn_emb: [B, gnn_dim]
-          - fused_emb: [B, fused_dim]
-          - node_weights: [Total_Nodes, 1]
-          - gate_weights: Dict of modality weights
-        """
-        # 1. Extract CNN embeddings and spatial feature maps
         h_cnn, fmap = self.cnn(images)
-
-        # 2. Extract GNN topological embeddings and node importance
         h_gnn, node_weights = self.gnn(graphs.x, graphs.edge_index, graphs.batch)
-
-        # 3. Extract Clinical tabular embeddings
         h_clin = self.clinical_encoder(clinicals)
 
-        # 4. Multimodal Fusion
         z_fused, gate_weights = self.fusion(h_cnn, h_gnn, h_clin)
 
-        # 5. Multi-Task Predictions
         detection_logits = self.detection_head(z_fused)
         class_logits = self.classification_head(z_fused)
         grade_logits = self.grade_head(z_fused)
@@ -169,19 +190,3 @@ class MultimodalBrainTumorNet(nn.Module):
             "node_weights": node_weights,
             "gate_weights": gate_weights
         }
-
-
-if __name__ == "__main__":
-    from src.dataset.graph_utils import build_grid_graph
-    model = MultimodalBrainTumorNet(pretrained_cnn=False)
-    dummy_imgs = torch.randn(2, 3, 224, 224)
-    g1 = build_grid_graph(dummy_imgs[0])
-    g2 = build_grid_graph(dummy_imgs[1])
-    batch_graphs = Batch.from_data_list([g1, g2])
-    dummy_clin = torch.randn(2, 8)
-
-    outputs = model(dummy_imgs, batch_graphs, dummy_clin)
-    print("Multi-Class Logits Shape:", outputs["class_logits"].shape)
-    print("Detection Logits Shape:", outputs["detection_logits"].shape)
-    print("Grade Logits Shape:", outputs["grade_logits"].shape)
-    print("Fused Multimodal Embedding Shape:", outputs["fused_emb"].shape)

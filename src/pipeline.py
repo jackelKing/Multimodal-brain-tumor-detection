@@ -25,6 +25,7 @@ from src.dataset.dataset_builder import generate_synthetic_clinical_profile, get
 from src.models.multimodal_fusion import MultimodalBrainTumorNet
 from src.explainability.gradcam import GradCAM
 from src.explainability.graph_visualizer import draw_gnn_graph_overlay
+from src.explainability.segmentation import segment_tumor_compartments
 from src.rag.clinical_advisor import ClinicalAdvisor
 
 
@@ -166,6 +167,25 @@ class MultimodalBrainTumorPipeline:
             print(f"[GNN Visualizer error]: {e}")
             gnn_overlay = np.array(pil_img.resize(IMAGE_SIZE))
 
+        # C) Multi-Compartment Tumor Segmentation & Caliper Volumetrics
+        try:
+            raw_rgb = np.array(pil_img.resize(IMAGE_SIZE))
+            seg_results = segment_tumor_compartments(raw_rgb, cam_map)
+            seg_overlay = seg_results["color_overlay"]
+            seg_metrics = seg_results["metrics"]
+        except Exception as e:
+            print(f"[Segmentation error]: {e}")
+            seg_overlay = np.array(pil_img.resize(IMAGE_SIZE))
+            seg_metrics = {
+                "major_diameter_mm": 0.0,
+                "minor_diameter_mm": 0.0,
+                "area_mm2": 0.0,
+                "estimated_volume_cm3": 0.0,
+                "centroid_x": 112,
+                "centroid_y": 112,
+                "edema_to_core_ratio": 1.0
+            }
+
         # Format probability dictionary
         prob_dict = {IDX_TO_CLASS[i]: float(class_probs[i]) for i in range(len(class_probs))}
 
@@ -195,6 +215,8 @@ class MultimodalBrainTumorPipeline:
             "cam_map": cam_map,
             "cam_overlay": cam_overlay,
             "gnn_overlay": gnn_overlay,
+            "seg_overlay": seg_overlay,
+            "volumetric_metrics": seg_metrics,
             "original_image": pil_img
         }
 

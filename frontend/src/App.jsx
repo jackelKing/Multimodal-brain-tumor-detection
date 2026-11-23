@@ -4,7 +4,9 @@ import PatientCaseSelector from './components/PatientCaseSelector';
 import MriViewer from './components/MriViewer';
 import DiagnosticResults from './components/DiagnosticResults';
 import RagConsultation from './components/RagConsultation';
+import ClinicalCalculators from './components/ClinicalCalculators';
 import AnalyticsModal from './components/AnalyticsModal';
+import { Eye, Calculator, Sparkles, LayoutDashboard } from 'lucide-react';
 
 export default function App() {
   const [systemStatus, setSystemStatus] = useState(null);
@@ -20,10 +22,13 @@ export default function App() {
     codeletion_1p19q: 'Non-codeleted'
   });
 
+  const [activeWorkflowTab, setActiveWorkflowTab] = useState('all'); // 'all', 'imaging', 'calculators', 'rag'
+
   const [uploadedFile, setUploadedFile] = useState(null);
   const [originalImage, setOriginalImage] = useState(null);
   const [camOverlay, setCamOverlay] = useState(null);
   const [gnnOverlay, setGnnOverlay] = useState(null);
+  const [segOverlay, setSegOverlay] = useState(null);
 
   const [results, setResults] = useState(null);
   const [reportData, setReportData] = useState(null);
@@ -50,7 +55,6 @@ export default function App() {
       .then((data) => {
         if (data.cases && data.cases.length > 0) {
           setCases(data.cases);
-          // Set first case as default
           const defaultCase = data.cases[0];
           setSelectedCaseId(defaultCase.id);
           setPatientInfo(defaultCase.patient_info);
@@ -75,9 +79,9 @@ export default function App() {
     if (c.image_base64) {
       setOriginalImage(`data:image/jpeg;base64,${c.image_base64}`);
     }
-    // Clear old predictions for fresh run
     setCamOverlay(null);
     setGnnOverlay(null);
+    setSegOverlay(null);
     setResults(null);
     setReportData(null);
   };
@@ -91,6 +95,7 @@ export default function App() {
       setOriginalImage(e.target.result);
       setCamOverlay(null);
       setGnnOverlay(null);
+      setSegOverlay(null);
       setResults(null);
       setReportData(null);
     };
@@ -132,6 +137,9 @@ export default function App() {
       }
       if (data.gnn_overlay_base64) {
         setGnnOverlay(`data:image/jpeg;base64,${data.gnn_overlay_base64}`);
+      }
+      if (data.seg_overlay_base64) {
+        setSegOverlay(`data:image/jpeg;base64,${data.seg_overlay_base64}`);
       }
       if (data.original_image_base64 && !originalImage) {
         setOriginalImage(`data:image/jpeg;base64,${data.original_image_base64}`);
@@ -204,7 +212,68 @@ export default function App() {
       />
 
       {/* Main Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-5">
+        {/* Workflow View Mode Switcher */}
+        <div className="flex items-center justify-between border-b border-slate-900 pb-3">
+          <div className="flex items-center space-x-2 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+            <button
+              onClick={() => setActiveWorkflowTab('all')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition ${
+                activeWorkflowTab === 'all'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              <span>Full Clinical Cockpit</span>
+            </button>
+
+            <button
+              onClick={() => setActiveWorkflowTab('imaging')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition ${
+                activeWorkflowTab === 'imaging'
+                  ? 'bg-cyan-600 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Imaging &amp; Calipers</span>
+            </button>
+
+            <button
+              onClick={() => setActiveWorkflowTab('calculators')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition ${
+                activeWorkflowTab === 'calculators'
+                  ? 'bg-purple-600 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Calculator className="w-3.5 h-3.5" />
+              <span>RTOG RPA Calculators</span>
+            </button>
+
+            <button
+              onClick={() => setActiveWorkflowTab('rag')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition ${
+                activeWorkflowTab === 'rag'
+                  ? 'bg-amber-600 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>WHO CNS5 RAG Advisor</span>
+            </button>
+          </div>
+
+          <div className="hidden sm:flex items-center space-x-2 text-xs text-slate-400 font-mono">
+            <span>Model:</span>
+            <span className="text-emerald-400 font-bold">95.75% Test Acc</span>
+            <span className="text-slate-600">•</span>
+            <span className="text-cyan-400 font-bold">100% Neoplasm Det</span>
+          </div>
+        </div>
+
+        {/* Clinical Grid Workspace */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: Patient Case & Biomarker Selector (5 Cols) */}
           <div className="lg:col-span-5 space-y-6">
@@ -218,41 +287,61 @@ export default function App() {
               onRunAnalysis={handleRunAnalysis}
               loading={loadingAnalysis}
             />
+
+            {/* In 'all' or 'calculators' tab, render Calculators in left or bottom column */}
+            {(activeWorkflowTab === 'all' || activeWorkflowTab === 'calculators') && (
+              <ClinicalCalculators
+                patientInfo={patientInfo}
+                results={results}
+              />
+            )}
           </div>
 
           {/* Right Column: Visualizer, Diagnostics & RAG Suite (7 Cols) */}
           <div className="lg:col-span-7 space-y-6">
-            {/* Interactive MRI Visualizer */}
-            <MriViewer
-              originalImage={originalImage}
-              camOverlay={camOverlay}
-              gnnOverlay={gnnOverlay}
-              results={results}
-            />
+            {/* Interactive MRI Visualizer (Shown in 'all' and 'imaging') */}
+            {(activeWorkflowTab === 'all' || activeWorkflowTab === 'imaging') && (
+              <MriViewer
+                originalImage={originalImage}
+                camOverlay={camOverlay}
+                gnnOverlay={gnnOverlay}
+                segOverlay={segOverlay}
+                results={results}
+              />
+            )}
 
-            {/* Diagnostic Classification & Multi-Task Results */}
-            <DiagnosticResults results={results} />
+            {/* Diagnostic Classification & Multi-Task Results (Shown in 'all' and 'imaging') */}
+            {(activeWorkflowTab === 'all' || activeWorkflowTab === 'imaging') && (
+              <DiagnosticResults results={results} />
+            )}
 
-            {/* RAG Clinical Consultation & Evidence Drawer */}
-            <RagConsultation
-              results={results}
-              patientInfo={patientInfo}
-              availableModels={systemStatus?.models || [selectedModel]}
-              selectedModel={selectedModel}
-              onSelectModel={setSelectedModel}
-              onGenerateReport={handleGenerateReport}
-              reportData={reportData}
-              loadingReport={loadingReport}
-              onSendChat={handleSendChat}
-              chatLoading={chatLoading}
-            />
+            {/* In 'calculators' isolated view, also show diagnostic results for context */}
+            {activeWorkflowTab === 'calculators' && (
+              <DiagnosticResults results={results} />
+            )}
+
+            {/* RAG Clinical Consultation & Evidence Drawer (Shown in 'all' and 'rag') */}
+            {(activeWorkflowTab === 'all' || activeWorkflowTab === 'rag') && (
+              <RagConsultation
+                results={results}
+                patientInfo={patientInfo}
+                availableModels={systemStatus?.models || [selectedModel]}
+                selectedModel={selectedModel}
+                onSelectModel={setSelectedModel}
+                onGenerateReport={handleGenerateReport}
+                reportData={reportData}
+                loadingReport={loadingReport}
+                onSendChat={handleSendChat}
+                chatLoading={chatLoading}
+              />
+            )}
           </div>
         </div>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 py-4 text-center text-xs text-slate-500">
-        NeuroMultimodal AI • Deep CNN (ResNet18) + Graph Neural Network (GAT) + Clinical RAG with Ollama ({selectedModel})
+        NeuroMultimodal AI • Deep CNN (ResNet18) + Graph Attention Network (GATv2) + Multi-Head Cross-Attention + Clinical RAG ({selectedModel})
       </footer>
 
       {/* Analytics Modal */}

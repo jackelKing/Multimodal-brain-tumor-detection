@@ -1,20 +1,22 @@
 """
 FastAPI Server for Multimodal Brain Tumor Detection, Prediction, Classification & RAG.
-Provides RESTful APIs for the React Frontend.
+Provides RESTful APIs for the Advanced React Medical Frontend.
 """
 import os
 import io
 import json
 import base64
+import math
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from PIL import Image
+import numpy as np
 
 from src.config import (
     CHECKPOINT_DIR,
@@ -26,14 +28,14 @@ from src.config import (
     DATA_DIR
 )
 from src.pipeline import MultimodalBrainTumorPipeline
+from src.explainability.segmentation import segment_tumor_compartments
 
 app = FastAPI(
     title="NeuroMultimodal AI API",
     description="Multimodal Brain Tumor Detection, Prediction & Classification API (CNN + GNN + RAG)",
-    version="1.0.0"
+    version="2.0.0"
 )
 
-# Enable CORS for React frontend (Vite defaults to 5173, etc.)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -42,7 +44,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize pipeline lazily or on startup
 pipeline = None
 
 
@@ -152,7 +153,6 @@ def get_cases():
 
     for key, c in PRESET_CASES.items():
         case_data = dict(c)
-        # Find matching image in clinical records or test dataset
         img_b64 = None
         if records_file.exists():
             import pandas as pd
@@ -180,7 +180,6 @@ async def predict_tumor(
 ):
     pipe = get_pipeline()
 
-    # Parse patient info JSON
     try:
         p_info = json.loads(patient_info)
     except Exception:
@@ -208,16 +207,16 @@ async def predict_tumor(
     if pil_img is None:
         raise HTTPException(status_code=400, detail="No valid image input provided.")
 
-    # Run multimodal prediction
+    # Execute multimodal pipeline
     results = pipe.predict(
         image_input=pil_img,
         patient_info=p_info,
         generate_rag_report=False
     )
 
-    # Encode overlays to base64
     cam_overlay_b64 = array_to_base64(results["cam_overlay"])
     gnn_overlay_b64 = array_to_base64(results["gnn_overlay"])
+    seg_overlay_b64 = array_to_base64(results["seg_overlay"])
     orig_b64 = image_to_base64(results["original_image"])
 
     return {
@@ -231,9 +230,102 @@ async def predict_tumor(
         "gate_weights": results["gate_weights"],
         "gradcam_summary": results["gradcam_summary"],
         "gnn_summary": results["gnn_summary"],
+        "volumetric_metrics": results.get("volumetric_metrics", {}),
         "original_image_base64": orig_b64,
         "cam_overlay_base64": cam_overlay_b64,
-        "gnn_overlay_base64": gnn_overlay_b64
+        "gnn_overlay_base64": gnn_overlay_b64,
+        "seg_overlay_base64": seg_overlay_b64
+    }
+
+
+class CaliperRequest(BaseModel):
+    p1: Dict[str, float]  # {x, y}
+    p2: Dict[str, float]  # {x, y}
+    image_width: int = 224
+    image_height: int = 224
+    pixel_spacing_mm: float = 0.9375
+
+
+@app.post("/api/caliper")
+def compute_caliper_measurement(req: CaliperRequest):
+    """Computes exact Euclidean distance and estimated 3D tumor volume from 2 caliper endpoints."""
+    dx = (req.p2["x"] - req.p1["x"]) * req.pixel_spacing_mm
+    dy = (req.p2["y"] - req.p1["y"]) * req.pixel_spacing_mm
+    distance_mm = math.sqrt(dx**2 + dy**2)
+
+    # Estimate volume assuming spherical/ellipsoid approximation V = (pi / 6) * d^3
+    volume_mm3 = (math.pi / 6.0) * (distance_mm ** 3)
+    volume_cm3 = volume_mm3 / 1000.0
+
+    return {
+        "diameter_mm": round(distance_mm, 2),
+        "estimated_volume_cm3": round(volume_cm3, 2),
+        "midpoint_x": round((req.p1["x"] + req.p2["x"]) / 2.0, 1),
+        "midpoint_y": round((req.p1["y"] + req.p2["y"]) / 2.0, 1)
+    }
+
+
+class RpaRequest(BaseModel):
+    age: int
+    kps: int
+    resection_status: str = "GTR"  # "GTR", "STR", "Biopsy"
+    neurological_function: str = "Normal"  # "Normal", "Deficit"
+
+
+@app.post("/api/prognosis/rpa")
+def compute_rpa_class(req: RpaRequest):
+    """
+    Computes RTOG Recursive Partitioning Analysis (RPA) Class for Glioblastoma.
+    RPA Class III: Age < 50, KPS >= 90 (Median OS: ~17.9 months)
+    RPA Class IV: Age < 50, KPS < 90 OR Age >= 50, KPS >= 70, GTR/STR (Median OS: ~15.0 months)
+    RPA Class V: Age >= 50, KPS >= 70, Biopsy only OR Age >= 50, KPS < 70, Normal neuro (Median OS: ~10.0 months)
+    RPA Class VI: Age >= 50, KPS < 70, Neurological deficit (Median OS: ~4.6 months)
+    """
+    age = req.age
+    kps = req.kps
+    is_resection = req.resection_status in ["GTR", "STR"]
+    is_normal_neuro = req.neurological_function == "Normal"
+
+    if age < 50:
+        if kps >= 90:
+            rpa_class = "Class III"
+            median_os = 17.9
+            two_year_os = "35%"
+            risk_tier = "Favorable Glioblastoma"
+        else:
+            rpa_class = "Class IV"
+            median_os = 14.8
+            two_year_os = "20%"
+            risk_tier = "Intermediate Risk"
+    else:  # age >= 50
+        if kps >= 70:
+            if is_resection:
+                rpa_class = "Class IV"
+                median_os = 14.5
+                two_year_os = "18%"
+                risk_tier = "Intermediate Risk"
+            else:
+                rpa_class = "Class V"
+                median_os = 10.0
+                two_year_os = "8%"
+                risk_tier = "High Risk"
+        else:  # kps < 70
+            if is_normal_neuro:
+                rpa_class = "Class V"
+                median_os = 8.9
+                two_year_os = "6%"
+                risk_tier = "High Risk"
+            else:
+                rpa_class = "Class VI"
+                median_os = 4.6
+                two_year_os = "2%"
+                risk_tier = "Very High Risk / Frail"
+
+    return {
+        "rpa_class": rpa_class,
+        "median_overall_survival_months": median_os,
+        "two_year_survival_probability": two_year_os,
+        "risk_tier": risk_tier
     }
 
 
@@ -241,6 +333,8 @@ class RagReportRequest(BaseModel):
     patient_info: Dict[str, Any]
     multimodal_results: Dict[str, Any]
     model_name: Optional[str] = None
+    strategy: Optional[str] = "tumor_board"  # "tumor_board", "surgery", "radiation", "patient_friendly"
+    temperature: Optional[float] = 0.2
 
 
 @app.post("/api/rag/report")
@@ -277,6 +371,16 @@ def chat_clinical_rag(req: RagChatRequest):
     return {"answer": ans}
 
 
+@app.get("/api/guidelines/search")
+def search_guidelines(q: str = Query(..., min_length=2)):
+    pipe = get_pipeline()
+    if not pipe.clinical_advisor:
+        raise HTTPException(status_code=500, detail="Retriever not initialized.")
+
+    docs = pipe.clinical_advisor.retriever.retrieve(query=q, top_k=5)
+    return {"query": q, "results": docs}
+
+
 @app.get("/api/metrics")
 def get_metrics():
     summary_path = CHECKPOINT_DIR / "evaluation_summary.json"
@@ -298,7 +402,7 @@ def get_metrics():
     }
 
 
-# Mount static files if frontend build exists
+# Mount static files for React production build
 dist_dir = Path(__file__).resolve().parent / "frontend" / "dist"
 if dist_dir.exists():
     app.mount("/", StaticFiles(directory=str(dist_dir), html=True), name="frontend")
