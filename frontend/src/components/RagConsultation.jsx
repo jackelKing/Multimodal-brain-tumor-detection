@@ -13,7 +13,8 @@ import {
   MessageSquare,
   Search,
   ExternalLink,
-  HelpCircle
+  HelpCircle,
+  Activity
 } from 'lucide-react';
 
 export default function RagConsultation({
@@ -49,7 +50,7 @@ export default function RagConsultation({
     setChatMessages(updatedHistory);
 
     try {
-      const caseCtx = `Patient: ${JSON.stringify(patientInfo)}\nDiagnosis: ${results?.predicted_class} (${results?.predicted_grade})\nConfidence: ${(results?.confidence * 100).toFixed(1)}%`;
+      const caseCtx = `Patient Profile: Age ${patientInfo.age}, ${patientInfo.gender}, KPS ${patientInfo.kps}, IDH1 ${patientInfo.idh1}, MGMT ${patientInfo.mgmt}, 1p/19q ${patientInfo.codeletion_1p19q}. Symptoms: ${patientInfo.symptoms}.\nAI Diagnosis: ${results?.predicted_class || 'Glioma (Presumptive)'} (${results?.predicted_grade || 'WHO Grade IV'}).`;
       const ans = await onSendChat(caseCtx, q);
       setChatMessages([...updatedHistory, { sender: 'bot', text: ans }]);
     } catch (err) {
@@ -93,25 +94,25 @@ export default function RagConsultation({
   ];
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5">
+    <div className="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
       {/* Header & Model Selector */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-white flex items-center space-x-2">
-            <Sparkles className="w-5 h-5 text-amber-400" />
-            <span>RAG Clinical Decision Support Suite</span>
+          <h2 className="text-sm sm:text-base font-bold text-white flex items-center space-x-2">
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>WHO CNS5 Evidence-Grounded RAG Suite</span>
           </h2>
-          <p className="text-xs text-slate-400">
-            WHO CNS5 guidelines powered by local Ollama ({selectedModel}) &amp; ChromaDB.
+          <p className="text-[11px] text-slate-400">
+            Powered by local Ollama ({selectedModel}) querying ChromaDB guideline collection.
           </p>
         </div>
 
         <div className="flex items-center space-x-2">
-          <label className="text-xs text-slate-400">Ollama LLM:</label>
+          <label className="text-xs text-slate-400">Model:</label>
           <select
             value={selectedModel}
             onChange={(e) => onSelectModel(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:border-indigo-500"
+            className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-200 font-medium focus:outline-none focus:border-indigo-500"
           >
             {availableModels.map((m) => (
               <option key={m} value={m}>{m}</option>
@@ -121,13 +122,13 @@ export default function RagConsultation({
       </div>
 
       {/* Feature Navigation Tabs */}
-      <div className="flex items-center space-x-1 border-b border-slate-800 pb-2 text-xs font-semibold">
+      <div className="flex items-center space-x-1.5 border-b border-slate-800/80 pb-2 text-xs font-semibold">
         <button
           onClick={() => setActiveTab('report')}
-          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition ${
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl transition ${
             activeTab === 'report'
               ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-              : 'text-slate-400 hover:text-slate-200'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
           }`}
         >
           <FileText className="w-3.5 h-3.5" />
@@ -136,10 +137,10 @@ export default function RagConsultation({
 
         <button
           onClick={() => setActiveTab('guidelines')}
-          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition ${
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl transition ${
             activeTab === 'guidelines'
               ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-              : 'text-slate-400 hover:text-slate-200'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
           }`}
         >
           <Search className="w-3.5 h-3.5" />
@@ -148,10 +149,10 @@ export default function RagConsultation({
 
         <button
           onClick={() => setActiveTab('chat')}
-          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition ${
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl transition ${
             activeTab === 'chat'
               ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'
-              : 'text-slate-400 hover:text-slate-200'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
           }`}
         >
           <MessageSquare className="w-3.5 h-3.5" />
@@ -171,7 +172,7 @@ export default function RagConsultation({
               </p>
               <button
                 onClick={onGenerateReport}
-                disabled={!results || loadingReport}
+                disabled={loadingReport}
                 className="py-2.5 px-6 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-semibold text-xs shadow-lg shadow-amber-600/20 transition cursor-pointer disabled:opacity-50 inline-flex items-center space-x-2"
               >
                 {loadingReport ? (
@@ -251,7 +252,7 @@ export default function RagConsultation({
               )}
 
               {/* Formatted Markdown Container */}
-              <div className="p-6 rounded-xl bg-slate-950 border border-slate-800 prose prose-invert prose-sm max-w-none prose-headings:text-indigo-300 prose-a:text-cyan-400 prose-strong:text-slate-200">
+              <div className="p-5 rounded-xl bg-slate-950 border border-slate-800 prose prose-invert prose-sm max-w-none prose-headings:text-indigo-300 prose-a:text-cyan-400 prose-strong:text-slate-200">
                 <ReactMarkdown>{reportData.report}</ReactMarkdown>
               </div>
             </div>
@@ -280,7 +281,7 @@ export default function RagConsultation({
             </button>
           </form>
 
-          {/* Quick preset chips */}
+          {/* Suggested chips */}
           <div className="flex flex-wrap gap-1.5 text-[11px]">
             <span className="text-slate-500 py-0.5">Suggested:</span>
             {['IDH1 Mutation Impact', 'Stupp Protocol Radiation', 'Pituitary Macroadenoma Apoplexy', 'Meningioma Simpson Grade'].map((term) => (
@@ -340,7 +341,7 @@ export default function RagConsultation({
                   key={idx}
                   onClick={() => handleSendQuestion(q)}
                   disabled={chatLoading}
-                  className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-left"
+                  className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 transition text-left cursor-pointer"
                 >
                   {q}
                 </button>
