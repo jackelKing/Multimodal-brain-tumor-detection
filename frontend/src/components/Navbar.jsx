@@ -1,61 +1,102 @@
 import React from 'react';
-import { Activity, Brain, Database, Cpu, Sparkles, BarChart3 } from 'lucide-react';
+import {
+  Brain,
+  Database,
+  Cpu,
+  Sparkles,
+  BarChart3,
+  HelpCircle,
+  PlayCircle,
+  FileDown,
+  ShieldCheck
+} from 'lucide-react';
 
-export default function Navbar({ systemStatus, onOpenAnalytics }) {
+export default function Navbar({
+  systemStatus,
+  onOpenAnalytics,
+  onOpenStartupTour,
+  onOpenClinicalGuide,
+  onExportDossier,
+  hasResults
+}) {
   const isOnline = systemStatus?.status === 'online';
   const activeModel = systemStatus?.active_model || 'llama3.2:latest';
   const chunks = systemStatus?.chroma_chunks || 20;
 
   return (
-    <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50 px-6 py-3">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+    <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-6 py-2.5">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         {/* Brand */}
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <Brain className="w-6 h-6 text-white" />
+        <div className="flex items-center space-x-3 cursor-pointer" onClick={onOpenStartupTour}>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-blue-500 to-cyan-400 p-0.5 shadow-lg shadow-indigo-500/20 flex items-center justify-center">
+            <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+              <Brain className="w-6 h-6 text-cyan-400" />
+            </div>
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <span className="text-xl font-bold tracking-tight text-white">NeuroMultimodal AI</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 font-medium">
+              <span className="text-base sm:text-lg font-black tracking-tight text-white">
+                NeuroMultimodal AI
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300">
                 CNN • GNN • RAG
               </span>
+              <span className="hidden xl:inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>95.75% High-Acc</span>
+              </span>
             </div>
-            <p className="text-xs text-slate-400">Clinical Neuro-Oncology Diagnostic & Decision Support Suite</p>
+            <p className="text-[11px] text-slate-400 hidden sm:block">
+              WHO CNS5 Neuro-Oncology Diagnostic &amp; Decision Support Workstation
+            </p>
           </div>
         </div>
 
-        {/* Status Indicators & Action */}
-        <div className="flex items-center space-x-4 text-xs">
-          {/* Ollama Status */}
-          <div className="hidden md:flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-slate-400">Ollama:</span>
-            <span className="text-slate-200 font-mono font-medium">{activeModel}</span>
-          </div>
+        {/* Action Controls & Status */}
+        <div className="flex items-center space-x-2 sm:space-x-3 text-xs">
+          {/* Quick Tour Button */}
+          <button
+            onClick={onOpenStartupTour}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600/30 to-cyan-600/30 hover:from-indigo-600/40 hover:to-cyan-600/40 border border-indigo-500/40 text-indigo-200 font-semibold transition cursor-pointer"
+          >
+            <PlayCircle className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">Startup Tour</span>
+          </button>
 
-          {/* Model Architecture */}
-          <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60">
-            <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="text-slate-400">Backend:</span>
-            <span className="text-slate-200 font-medium">ResNet18 + GAT + Fusion</span>
-          </div>
+          {/* Clinical Reference Guide */}
+          <button
+            onClick={onOpenClinicalGuide}
+            className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 font-medium transition cursor-pointer"
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+            <span>Clinical Guide</span>
+          </button>
 
-          {/* Vector Store */}
-          <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60">
-            <Database className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-slate-400">RAG:</span>
-            <span className="text-slate-200 font-medium">{chunks} WHO Guidelines</span>
-          </div>
+          {/* Export Complete Dossier Button */}
+          {hasResults && (
+            <button
+              onClick={onExportDossier}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-semibold transition cursor-pointer"
+            >
+              <FileDown className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden lg:inline">Export Dossier</span>
+            </button>
+          )}
 
-          {/* Analytics Button */}
+          {/* Ablation Analytics */}
           <button
             onClick={onOpenAnalytics}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-medium transition cursor-pointer"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-medium transition cursor-pointer"
           >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Ablation & Analytics</span>
+            <BarChart3 className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="hidden sm:inline">Analytics</span>
           </button>
+
+          {/* Live Ollama Status Badge */}
+          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 font-mono text-[11px] text-slate-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-slate-300 font-bold">{activeModel}</span>
+          </div>
         </div>
       </div>
     </header>

@@ -6,7 +6,9 @@ import DiagnosticResults from './components/DiagnosticResults';
 import RagConsultation from './components/RagConsultation';
 import ClinicalCalculators from './components/ClinicalCalculators';
 import AnalyticsModal from './components/AnalyticsModal';
-import { Eye, Calculator, Sparkles, LayoutDashboard } from 'lucide-react';
+import StartupModal from './components/StartupModal';
+import ClinicalGuideModal from './components/ClinicalGuideModal';
+import { Eye, Calculator, Sparkles, LayoutDashboard, FileDown } from 'lucide-react';
 
 export default function App() {
   const [systemStatus, setSystemStatus] = useState(null);
@@ -37,7 +39,13 @@ export default function App() {
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [loadingReport, setLoadingReport] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  
+  // Modals
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  const [clinicalGuideOpen, setClinicalGuideOpen] = useState(false);
+  const [startupModalOpen, setStartupModalOpen] = useState(() => {
+    return localStorage.getItem('neuro_ai_hide_welcome') !== 'true';
+  });
   const [metricsData, setMetricsData] = useState(null);
 
   // 1. Fetch initial status, cases, and metrics
@@ -103,21 +111,24 @@ export default function App() {
   };
 
   // Run Multimodal Inference
-  const handleRunAnalysis = async () => {
+  const handleRunAnalysis = async (customCaseId = null, customPatientInfo = null) => {
     setLoadingAnalysis(true);
     setReportData(null);
+
+    const activeCase = customCaseId || selectedCaseId;
+    const activeInfo = customPatientInfo || patientInfo;
 
     try {
       const formData = new FormData();
       if (uploadedFile) {
         formData.append('file', uploadedFile);
-      } else if (selectedCaseId) {
-        formData.append('case_id', selectedCaseId);
+      } else if (activeCase) {
+        formData.append('case_id', activeCase);
       } else if (originalImage) {
         formData.append('image_base64', originalImage);
       }
 
-      formData.append('patient_info', JSON.stringify(patientInfo));
+      formData.append('patient_info', JSON.stringify(activeInfo));
 
       const res = await fetch('/api/predict', {
         method: 'POST',
@@ -148,6 +159,21 @@ export default function App() {
       alert(`Inference Error: ${err.message}`);
     } finally {
       setLoadingAnalysis(false);
+    }
+  };
+
+  // Launch Demo Case from Startup Modal
+  const handleLaunchDemo = (caseKey) => {
+    const targetCase = cases.find((c) => c.id === caseKey) || cases[0];
+    if (targetCase) {
+      handleSelectCase(targetCase);
+      setStartupModalOpen(false);
+      setActiveWorkflowTab('all');
+      setTimeout(() => {
+        handleRunAnalysis(targetCase.id, targetCase.patient_info);
+      }, 100);
+    } else {
+      setStartupModalOpen(false);
     }
   };
 
@@ -203,24 +229,100 @@ export default function App() {
     }
   };
 
+  // Export Full Clinical Dossier
+  const handleExportDossier = () => {
+    if (!results) return;
+
+    const vm = results.volumetric_metrics || {};
+    const gw = results.gate_weights || {};
+
+    const dossierContent = `# NEUROMULTIMODAL AI CLINICAL DOSSIER
+**Evaluation Timestamp:** ${new Date().toISOString()}
+**Platform:** NeuroMultimodal AI Cockpit (v2.5 WHO CNS5 Grounded)
+
+---
+
+## 1. PATIENT DEMOGRAPHICS & BIOMARKERS
+- **Age:** ${patientInfo.age}
+- **Gender:** ${patientInfo.gender}
+- **Symptoms:** ${patientInfo.symptoms}
+- **KPS Score:** ${patientInfo.kps} / 100
+- **IDH1 Mutation Status:** ${patientInfo.idh1}
+- **MGMT Promoter Methylation:** ${patientInfo.mgmt}
+- **1p/19q Co-deletion:** ${patientInfo.codeletion_1p19q}
+
+---
+
+## 2. MULTIMODAL AI DIAGNOSTIC FINDINGS
+- **Predicted Pathological Subtype:** ${results.predicted_class}
+- **Subtype Diagnostic Confidence:** ${(results.confidence * 100).toFixed(2)}%
+- **Neoplasm Binary Detection:** ${results.is_tumor_detected ? 'POSITIVE (Tumor Detected)' : 'NEGATIVE (Normal Control)'}
+- **Detection Confidence:** ${(results.detection_confidence * 100).toFixed(2)}%
+- **WHO Histological Grade:** ${results.predicted_grade}
+- **Grade Prediction Confidence:** ${(results.grade_confidence * 100).toFixed(2)}%
+
+### Subtype Softmax Distribution:
+${Object.entries(results.class_probabilities || {})
+  .map(([cls, prob]) => `- ${cls}: ${(prob * 100).toFixed(2)}%`)
+  .join('\n')}
+
+### Modality Attention Gating Breakdown:
+- CNN Visual Representation: ${((gw.cnn_weight || 0.34) * 100).toFixed(1)}%
+- GNN Topological Graph: ${((gw.gnn_weight || 0.32) * 100).toFixed(1)}%
+- Clinical Prior Embedding: ${((gw.clinical_weight || 0.34) * 100).toFixed(1)}%
+
+---
+
+## 3. MORPHOMETRIC CALIPERS & 3D VOLUMETRICS
+- **Major Caliper Axis:** ${vm.major_diameter_mm ? vm.major_diameter_mm.toFixed(2) : 'N/A'} mm
+- **Minor Caliper Axis:** ${vm.minor_diameter_mm ? vm.minor_diameter_mm.toFixed(2) : 'N/A'} mm
+- **2D Lesion Cross-Sectional Area:** ${vm.area_mm2 ? vm.area_mm2.toFixed(1) : 'N/A'} mm²
+- **Estimated 3D Ellipsoid Volume:** ${vm.estimated_volume_cm3 ? vm.estimated_volume_cm3.toFixed(2) : 'N/A'} cm³
+- **Spatial Grad-CAM Summary:** ${results.gradcam_summary || 'N/A'}
+- **Tissue GNN Centrality Summary:** ${results.gnn_summary || 'N/A'}
+
+---
+
+## 4. RAG MULTIDISCIPLINARY CONSULTATION REPORT
+*(Synthesized via Ollama model: ${selectedModel})*
+
+${reportData?.report || 'Awaiting consultation report generation.'}
+
+---
+*Generated by NeuroMultimodal AI System. Grounded in WHO CNS5 Guidelines.*
+`;
+
+    const blob = new Blob([dossierContent], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Patient_Dossier_${results.predicted_class.replace(/\s+/g, '_')}_${Date.now()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Top Navigation */}
+      {/* Top Navigation Bar */}
       <Navbar
         systemStatus={systemStatus}
         onOpenAnalytics={() => setAnalyticsOpen(true)}
+        onOpenStartupTour={() => setStartupModalOpen(true)}
+        onOpenClinicalGuide={() => setClinicalGuideOpen(true)}
+        onExportDossier={handleExportDossier}
+        hasResults={Boolean(results)}
       />
 
       {/* Main Workspace */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-5">
         {/* Workflow View Mode Switcher */}
-        <div className="flex items-center justify-between border-b border-slate-900 pb-3">
-          <div className="flex items-center space-x-2 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-900 pb-3">
+          <div className="flex flex-wrap items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
             <button
               onClick={() => setActiveWorkflowTab('all')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition ${
                 activeWorkflowTab === 'all'
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-indigo-600 text-white shadow-md'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -232,7 +334,7 @@ export default function App() {
               onClick={() => setActiveWorkflowTab('imaging')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition ${
                 activeWorkflowTab === 'imaging'
-                  ? 'bg-cyan-600 text-white'
+                  ? 'bg-cyan-600 text-white shadow-md'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -244,7 +346,7 @@ export default function App() {
               onClick={() => setActiveWorkflowTab('calculators')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition ${
                 activeWorkflowTab === 'calculators'
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-purple-600 text-white shadow-md'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -256,7 +358,7 @@ export default function App() {
               onClick={() => setActiveWorkflowTab('rag')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition ${
                 activeWorkflowTab === 'rag'
-                  ? 'bg-amber-600 text-white'
+                  ? 'bg-amber-600 text-white shadow-md'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -265,11 +367,14 @@ export default function App() {
             </button>
           </div>
 
-          <div className="hidden sm:flex items-center space-x-2 text-xs text-slate-400 font-mono">
-            <span>Model:</span>
-            <span className="text-emerald-400 font-bold">95.75% Test Acc</span>
-            <span className="text-slate-600">•</span>
-            <span className="text-cyan-400 font-bold">100% Neoplasm Det</span>
+          <div className="flex items-center space-x-3 text-xs font-mono">
+            <span className="text-slate-400 hidden sm:inline">Benchmark:</span>
+            <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800/80 text-emerald-400 font-bold">
+              95.75% Test Acc
+            </span>
+            <span className="px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/80 text-cyan-400 font-bold">
+              100% Neoplasm Det
+            </span>
           </div>
         </div>
 
@@ -284,11 +389,11 @@ export default function App() {
               patientInfo={patientInfo}
               onUpdatePatientInfo={setPatientInfo}
               onCustomImageUpload={handleCustomImageUpload}
-              onRunAnalysis={handleRunAnalysis}
+              onRunAnalysis={() => handleRunAnalysis()}
               loading={loadingAnalysis}
             />
 
-            {/* In 'all' or 'calculators' tab, render Calculators in left or bottom column */}
+            {/* In 'all' or 'calculators' tab, render Calculators */}
             {(activeWorkflowTab === 'all' || activeWorkflowTab === 'calculators') && (
               <ClinicalCalculators
                 patientInfo={patientInfo}
@@ -299,7 +404,7 @@ export default function App() {
 
           {/* Right Column: Visualizer, Diagnostics & RAG Suite (7 Cols) */}
           <div className="lg:col-span-7 space-y-6">
-            {/* Interactive MRI Visualizer (Shown in 'all' and 'imaging') */}
+            {/* Interactive MRI Visualizer */}
             {(activeWorkflowTab === 'all' || activeWorkflowTab === 'imaging') && (
               <MriViewer
                 originalImage={originalImage}
@@ -310,17 +415,12 @@ export default function App() {
               />
             )}
 
-            {/* Diagnostic Classification & Multi-Task Results (Shown in 'all' and 'imaging') */}
-            {(activeWorkflowTab === 'all' || activeWorkflowTab === 'imaging') && (
+            {/* Diagnostic Classification & Multi-Task Results */}
+            {(activeWorkflowTab === 'all' || activeWorkflowTab === 'imaging' || activeWorkflowTab === 'calculators') && (
               <DiagnosticResults results={results} />
             )}
 
-            {/* In 'calculators' isolated view, also show diagnostic results for context */}
-            {activeWorkflowTab === 'calculators' && (
-              <DiagnosticResults results={results} />
-            )}
-
-            {/* RAG Clinical Consultation & Evidence Drawer (Shown in 'all' and 'rag') */}
+            {/* RAG Clinical Consultation & Evidence Drawer */}
             {(activeWorkflowTab === 'all' || activeWorkflowTab === 'rag') && (
               <RagConsultation
                 results={results}
@@ -344,7 +444,24 @@ export default function App() {
         NeuroMultimodal AI • Deep CNN (ResNet18) + Graph Attention Network (GATv2) + Multi-Head Cross-Attention + Clinical RAG ({selectedModel})
       </footer>
 
-      {/* Analytics Modal */}
+      {/* Startup / Welcome Guide Modal */}
+      <StartupModal
+        isOpen={startupModalOpen}
+        onClose={() => setStartupModalOpen(false)}
+        onLaunchDemo={handleLaunchDemo}
+        onSelectUpload={() => {
+          setActiveWorkflowTab('imaging');
+          // Focus upload in case selector
+        }}
+      />
+
+      {/* Clinical Reference Guide Modal */}
+      <ClinicalGuideModal
+        isOpen={clinicalGuideOpen}
+        onClose={() => setClinicalGuideOpen(false)}
+      />
+
+      {/* Ablation Analytics Modal */}
       <AnalyticsModal
         isOpen={analyticsOpen}
         onClose={() => setAnalyticsOpen(false)}
