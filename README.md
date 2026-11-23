@@ -25,7 +25,7 @@
 2. **Graph Attention Networks (GATv2)** constructing $7 \times 7$ superpixel tissue graphs (49 nodes, 8-way spatial adjacency) to model microenvironmental heterogeneity, cellular clustering, and infiltrative percolation paths.
 3. **Tabular Clinical Biomarker MLP** encoding molecular markers (IDH1 mutation, MGMT promoter methylation, 1p/19q co-deletion), patient age, gender, and Karnofsky Performance Scale (KPS).
 4. **Cross-Modal Multi-Head Self-Attention Transformer** with learned modality tokens and dynamic bilinear gating that weights visual, topological, and molecular streams.
-5. **Sub-millimeter Digital Calipers & 4-Compartment Morphological Segmentation** delineating Enhancing Tumor Core (ET), Peritumoral Edema (ED), and Central Necrosis (NCR) with calibrated DICOM pixel spacing ($0.9375\text{ mm/pixel}$) and 3D ellipsoid volume ($cm^3$) estimation.
+5. **Sub-millimeter Digital Calipers & 4-Compartment Morphological Segmentation** delineating Enhancing Tumor Core (ET), Peritumoral Edema (ED), and Central Necrosis (NCR) with calibrated DICOM pixel spacing (0.9375 mm/pixel) and 3D ellipsoid volume ($cm^3$) estimation.
 6. **WHO CNS5 Grounded Retrieval-Augmented Generation (RAG)** leveraging persistent **ChromaDB** vector storage and local **Ollama** models (`llama3.2`, `llama3.1`, `deepseek-r1`, `nomic-embed-text`) for evidence-based multi-disciplinary tumor board consultations and interactive Q&A.
 7. **Prognostic Stratification Engines** computing RTOG Recursive Partitioning Analysis (RPA Classes III–VI), KPS $\leftrightarrow$ ECOG performance conversions, and molecular hazard tiers.
 
@@ -329,9 +329,10 @@ python -m src.training.evaluator
 │   ├── src/
 │   │   ├── App.jsx                     # Master clinical workspace controller
 │   │   ├── components/
-│   │   │   ├── Navbar.jsx              # Status indicators, quick tour & guide triggers
+│   │   │   ├── Navbar.jsx              # Status indicators, workspace tab navigation & tour triggers
 │   │   │   ├── StartupModal.jsx        # First-load welcome & quick demo launcher
-│   │   │   ├── ClinicalGuideModal.jsx  # WHO CNS5 reference guide drawer
+│   │   │   ├── ClinicalGuideModal.jsx  # Quick WHO CNS5 reference guide drawer
+│   │   │   ├── ClinicalGuideView.jsx   # Dedicated WHO CNS5 Clinical Reference Guide workspace
 │   │   │   ├── MriViewer.jsx           # Calipers, 4-compartment masks, split view
 │   │   │   ├── DiagnosticResults.jsx   # Multi-task predictions & volumetric KPIs
 │   │   │   ├── ClinicalCalculators.jsx # RTOG RPA, KPS/ECOG, and molecular risk
@@ -373,16 +374,6 @@ This software is developed strictly for research, scientific evaluation, and edu
 
 ---
 
-## 📜 License & Citation
+## 📜 License
 
-Distributed under the Apache 2.0 License. If utilizing this multimodal architecture, dataset, or clinical RAG framework in your research, please cite:
-
-```bibtex
-@article{neuromultimodal2026,
-  title={Multimodal Brain Tumor Detection, Prediction and Classification using CNN, GATv2, and Evidence-Grounded WHO CNS5 RAG},
-  author={Jackel King and Contributors},
-  journal={GitHub Repository},
-  year={2026},
-  url={https://github.com/jackelKing/Multimodal-brain-tumor-detection}
-}
-```
+Distributed under the Apache 2.0 License.
