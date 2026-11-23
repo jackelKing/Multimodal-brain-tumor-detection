@@ -8,9 +8,7 @@ import {
   Ruler,
   RotateCcw,
   Sliders,
-  CheckCircle2,
-  Trash2,
-  Info
+  Trash2
 } from 'lucide-react';
 
 export default function MriViewer({
@@ -88,24 +86,20 @@ export default function MriViewer({
   const vm = results?.volumetric_metrics;
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-      {/* Header & Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-white flex items-center space-x-2">
-            <Eye className="w-5 h-5 text-cyan-400" />
-            <span>Multi-Modal Neuroimaging Suite</span>
-          </h2>
-          <p className="text-xs text-slate-400">
-            Grad-CAM, 7x7 GNN topology, 4-compartment segmentation &amp; digital calipers.
-          </p>
+    <div className="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-xl space-y-3.5">
+      {/* Header & Clean Mode Pills */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex items-center space-x-2">
+          <Eye className="w-4 h-4 text-cyan-400" />
+          <h2 className="text-sm font-bold text-white tracking-tight">Neuroimaging Canvas</h2>
+          <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">• 0.9375 mm/px DICOM</span>
         </div>
 
         {/* View Mode Switcher */}
-        <div className="flex flex-wrap items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-medium">
+        <div className="flex flex-wrap items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800/80 text-xs font-medium">
           <button
             onClick={() => setViewMode('orig')}
-            className={`px-2.5 py-1.5 rounded-lg transition ${
+            className={`px-2.5 py-1 rounded-lg transition ${
               viewMode === 'orig' ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -113,38 +107,38 @@ export default function MriViewer({
           </button>
           <button
             onClick={() => setViewMode('cam')}
-            className={`px-2.5 py-1.5 rounded-lg transition flex items-center space-x-1 ${
+            className={`px-2.5 py-1 rounded-lg transition flex items-center space-x-1 ${
               viewMode === 'cam' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Layers className="w-3.5 h-3.5" />
+            <Layers className="w-3 h-3" />
             <span>Grad-CAM</span>
           </button>
           <button
             onClick={() => setViewMode('gnn')}
-            className={`px-2.5 py-1.5 rounded-lg transition flex items-center space-x-1 ${
+            className={`px-2.5 py-1 rounded-lg transition flex items-center space-x-1 ${
               viewMode === 'gnn' ? 'bg-cyan-600 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Network className="w-3.5 h-3.5" />
+            <Network className="w-3 h-3" />
             <span>GNN Graph</span>
           </button>
           <button
             onClick={() => setViewMode('seg')}
-            className={`px-2.5 py-1.5 rounded-lg transition flex items-center space-x-1 ${
+            className={`px-2.5 py-1 rounded-lg transition flex items-center space-x-1 ${
               viewMode === 'seg' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Activity className="w-3.5 h-3.5" />
+            <Activity className="w-3 h-3" />
             <span>Segmentation</span>
           </button>
           <button
             onClick={() => setViewMode('split')}
-            className={`px-2.5 py-1.5 rounded-lg transition flex items-center space-x-1 ${
+            className={`px-2.5 py-1 rounded-lg transition flex items-center space-x-1 ${
               viewMode === 'split' ? 'bg-purple-600 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <SplitSquareVertical className="w-3.5 h-3.5" />
+            <SplitSquareVertical className="w-3 h-3" />
             <span>Split View</span>
           </button>
         </div>
@@ -154,7 +148,7 @@ export default function MriViewer({
       <div
         ref={imageContainerRef}
         onClick={handleCanvasClick}
-        className={`relative aspect-square max-h-[440px] mx-auto rounded-xl overflow-hidden border border-slate-800 bg-black flex items-center justify-center select-none ${
+        className={`relative aspect-square max-h-[380px] sm:max-h-[400px] mx-auto rounded-xl overflow-hidden border border-slate-800/80 bg-black flex items-center justify-center select-none ${
           caliperActive ? 'cursor-crosshair' : 'cursor-default'
         }`}
       >
@@ -182,11 +176,11 @@ export default function MriViewer({
                     filter: `brightness(${brightness}%) contrast(${contrast}%)`
                   }}
                 />
-                <span className="absolute top-3 left-3 px-2 py-1 bg-indigo-950/90 border border-indigo-500/50 text-[10px] text-indigo-300 font-bold rounded shadow">
-                  Overlay Layer
+                <span className="absolute top-3 left-3 px-2 py-0.5 bg-indigo-950/90 border border-indigo-500/50 text-[10px] text-indigo-300 font-bold rounded shadow">
+                  Overlay
                 </span>
               </div>
-              <span className="absolute top-3 right-3 px-2 py-1 bg-slate-900/90 border border-slate-700 text-[10px] text-slate-300 font-bold rounded shadow">
+              <span className="absolute top-3 right-3 px-2 py-0.5 bg-slate-900/90 border border-slate-700 text-[10px] text-slate-300 font-bold rounded shadow">
                 Raw MRI
               </span>
               <input
@@ -223,18 +217,18 @@ export default function MriViewer({
               )}
 
               {/* View Badge */}
-              <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-900/85 backdrop-blur border border-slate-700 text-slate-200 shadow">
-                {viewMode === 'orig' && 'Original T1-CE / T2 MRI'}
+              <div className="absolute top-3 left-3 px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-900/85 backdrop-blur border border-slate-700 text-slate-200 shadow">
+                {viewMode === 'orig' && 'Raw T1-CE / T2 MRI'}
                 {viewMode === 'cam' && 'CNN Spatial Grad-CAM Focus'}
-                {viewMode === 'gnn' && 'GNN 7x7 Superpixel Adjacency Graph'}
-                {viewMode === 'seg' && '4-Compartment Morphological Segmentation'}
+                {viewMode === 'gnn' && 'GNN 7x7 Superpixel Adjacency'}
+                {viewMode === 'seg' && '4-Compartment Morphological Mask'}
               </div>
             </div>
           )
         ) : (
-          <div className="text-center text-slate-500 space-y-2">
-            <Eye className="w-8 h-8 mx-auto opacity-40" />
-            <p className="text-xs">Select a clinical case or upload an MRI scan to preview.</p>
+          <div className="text-center text-slate-500 space-y-2 p-6">
+            <Eye className="w-8 h-8 mx-auto opacity-40 text-cyan-400" />
+            <p className="text-xs">Select a clinical case on the left or upload an MRI scan to begin.</p>
           </div>
         )}
 
@@ -246,7 +240,7 @@ export default function MriViewer({
                 <circle
                   cx={`${caliperPoints[0].x}%`}
                   cy={`${caliperPoints[0].y}%`}
-                  r="6"
+                  r="5"
                   fill="#06B6D4"
                   stroke="#FFFFFF"
                   strokeWidth="2"
@@ -256,7 +250,7 @@ export default function MriViewer({
                   x={`${caliperPoints[0].x + 2}%`}
                   y={`${caliperPoints[0].y - 2}%`}
                   fill="#06B6D4"
-                  fontSize="12"
+                  fontSize="11"
                   fontWeight="bold"
                 >
                   A
@@ -272,13 +266,13 @@ export default function MriViewer({
                   x2={`${caliperPoints[1].x}%`}
                   y2={`${caliperPoints[1].y}%`}
                   stroke="#06B6D4"
-                  strokeWidth="2.5"
+                  strokeWidth="2"
                   strokeDasharray="4 4"
                 />
                 <circle
                   cx={`${caliperPoints[1].x}%`}
                   cy={`${caliperPoints[1].y}%`}
-                  r="6"
+                  r="5"
                   fill="#06B6D4"
                   stroke="#FFFFFF"
                   strokeWidth="2"
@@ -287,7 +281,7 @@ export default function MriViewer({
                   x={`${caliperPoints[1].x + 2}%`}
                   y={`${caliperPoints[1].y - 2}%`}
                   fill="#06B6D4"
-                  fontSize="12"
+                  fontSize="11"
                   fontWeight="bold"
                 >
                   B
@@ -297,22 +291,21 @@ export default function MriViewer({
           </svg>
         )}
 
-        {/* Caliper Measurement Badge */}
+        {/* Caliper Measurement Floating Badge */}
         {caliperMeasurement && (
           <div
-            className="absolute z-30 px-3 py-1.5 rounded-lg bg-slate-950/95 border border-cyan-500 shadow-xl text-center pointer-events-none"
+            className="absolute z-30 px-2.5 py-1 rounded-lg bg-slate-950/95 border border-cyan-500 shadow-xl text-center pointer-events-none"
             style={{
-              left: `${Math.min(Math.max(caliperMeasurement.midX, 20), 80)}%`,
-              top: `${Math.min(Math.max(caliperMeasurement.midY - 12, 10), 80)}%`,
+              left: `${Math.min(Math.max(caliperMeasurement.midX, 25), 75)}%`,
+              top: `${Math.min(Math.max(caliperMeasurement.midY - 12, 12), 75)}%`,
               transform: 'translate(-50%, -50%)'
             }}
           >
             <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">Caliper Diameter</div>
-            <div className="text-sm font-mono font-extrabold text-white">
-              {caliperMeasurement.distMm} <span className="text-xs text-slate-400">mm</span>
-            </div>
-            <div className="text-[10px] text-slate-400 font-mono">
-              Vol: <span className="text-cyan-300 font-bold">{caliperMeasurement.volumeCm3} cm³</span>
+            <div className="text-xs font-mono font-extrabold text-white">
+              {caliperMeasurement.distMm} <span className="text-[10px] text-slate-400">mm</span>
+              <span className="text-slate-500 mx-1">•</span>
+              <span className="text-cyan-300">{caliperMeasurement.volumeCm3} cm³</span>
             </div>
           </div>
         )}
@@ -320,32 +313,32 @@ export default function MriViewer({
 
       {/* Segmentation Legend Bar (when in seg mode) */}
       {viewMode === 'seg' && (
-        <div className="flex flex-wrap items-center justify-center gap-3 p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs">
+        <div className="flex flex-wrap items-center justify-center gap-3 p-2 rounded-xl bg-slate-950 border border-slate-800 text-[11px]">
           <div className="flex items-center space-x-1.5">
-            <span className="w-3 h-3 rounded-full bg-red-500 shadow-sm" />
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
             <span className="text-slate-300 font-medium">Enhancing Tumor (ET)</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <span className="w-3 h-3 rounded-full bg-amber-400 shadow-sm" />
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
             <span className="text-slate-300 font-medium">Peritumoral Edema (ED)</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <span className="w-3 h-3 rounded-full bg-blue-500 shadow-sm" />
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
             <span className="text-slate-300 font-medium">Necrotic Core (NCR)</span>
           </div>
         </div>
       )}
 
-      {/* Adjustments & Caliper Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800 text-xs text-slate-400">
-        <div className="flex flex-wrap items-center gap-4">
+      {/* Compact Adjustments & Caliper Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1 text-xs text-slate-400">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Caliper Toggle */}
           <button
             onClick={() => {
               setCaliperActive(!caliperActive);
               if (caliperActive) clearCaliper();
             }}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border font-semibold transition ${
+            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border font-semibold text-xs transition cursor-pointer ${
               caliperActive
                 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500'
                 : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
@@ -358,7 +351,7 @@ export default function MriViewer({
           {caliperActive && caliperPoints.length > 0 && (
             <button
               onClick={clearCaliper}
-              className="flex items-center space-x-1 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition text-[11px]"
+              className="flex items-center space-x-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition text-[10px]"
             >
               <Trash2 className="w-3 h-3 text-red-400" />
               <span>Clear</span>
@@ -367,7 +360,7 @@ export default function MriViewer({
 
           {/* Opacity slider */}
           {viewMode !== 'orig' && viewMode !== 'split' && (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1.5 text-[11px]">
               <span>Overlay:</span>
               <input
                 type="range"
@@ -375,14 +368,14 @@ export default function MriViewer({
                 max="100"
                 value={overlayOpacity}
                 onChange={(e) => setOverlayOpacity(Number(e.target.value))}
-                className="w-20 accent-cyan-500 h-1 bg-slate-800 rounded"
+                className="w-16 accent-cyan-500 h-1 bg-slate-800 rounded"
               />
               <span className="text-[10px] font-mono text-slate-500">{overlayOpacity}%</span>
             </div>
           )}
 
           {/* Brightness */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5 text-[11px]">
             <span>Bri:</span>
             <input
               type="range"
@@ -390,90 +383,46 @@ export default function MriViewer({
               max="150"
               value={brightness}
               onChange={(e) => setBrightness(Number(e.target.value))}
-              className="w-16 accent-indigo-500 h-1 bg-slate-800 rounded"
-            />
-          </div>
-
-          {/* Contrast */}
-          <div className="flex items-center space-x-2">
-            <span>Con:</span>
-            <input
-              type="range"
-              min="50"
-              max="150"
-              value={contrast}
-              onChange={(e) => setContrast(Number(e.target.value))}
-              className="w-16 accent-indigo-500 h-1 bg-slate-800 rounded"
+              className="w-14 accent-indigo-500 h-1 bg-slate-800 rounded"
             />
           </div>
         </div>
 
         <button
           onClick={resetFilters}
-          className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+          className="flex items-center space-x-1 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] transition cursor-pointer"
         >
           <RotateCcw className="w-3 h-3" />
           <span>Reset</span>
         </button>
       </div>
 
-      {/* Volumetric Caliper KPI Summary Bar */}
-      {vm && (
-        <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/90 space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-slate-300 flex items-center space-x-1.5">
-              <Activity className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Quantitative Volumetric Delineation</span>
-            </span>
-            <span className="text-[10px] text-slate-500 font-mono">0.9375 mm/px DICOM Spacing</span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-            <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-              <div className="text-[10px] text-slate-400">Major Caliper</div>
-              <div className="font-mono font-bold text-white mt-0.5">
-                {vm.major_diameter_mm ? vm.major_diameter_mm.toFixed(1) : '—'} mm
-              </div>
-            </div>
-            <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-              <div className="text-[10px] text-slate-400">Minor Caliper</div>
-              <div className="font-mono font-bold text-white mt-0.5">
-                {vm.minor_diameter_mm ? vm.minor_diameter_mm.toFixed(1) : '—'} mm
-              </div>
-            </div>
-            <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-              <div className="text-[10px] text-slate-400">2D Area</div>
-              <div className="font-mono font-bold text-white mt-0.5">
-                {vm.area_mm2 ? vm.area_mm2.toFixed(0) : '—'} mm²
-              </div>
-            </div>
-            <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-              <div className="text-[10px] text-slate-400">3D Volume</div>
-              <div className="font-mono font-bold text-emerald-400 mt-0.5">
-                {vm.estimated_volume_cm3 ? vm.estimated_volume_cm3.toFixed(2) : '—'} cm³
-              </div>
+      {/* Volumetric Caliper KPI Summary Ribbon */}
+      {vm && vm.major_diameter_mm > 0 && (
+        <div className="grid grid-cols-4 gap-2 text-center text-xs p-2 rounded-xl bg-slate-950 border border-slate-800/80">
+          <div>
+            <div className="text-[10px] text-slate-400">Major Axis</div>
+            <div className="font-mono font-bold text-white text-[11px] mt-0.5">
+              {vm.major_diameter_mm.toFixed(1)} mm
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Explainability Summaries */}
-      {results && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-xs">
-          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-            <div className="flex items-center space-x-1.5 text-indigo-400 font-semibold">
-              <Layers className="w-3.5 h-3.5" />
-              <span>CNN Spatial Localization</span>
+          <div>
+            <div className="text-[10px] text-slate-400">Minor Axis</div>
+            <div className="font-mono font-bold text-white text-[11px] mt-0.5">
+              {vm.minor_diameter_mm.toFixed(1)} mm
             </div>
-            <p className="text-slate-300 leading-relaxed text-[11px]">{results.gradcam_summary}</p>
           </div>
-
-          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-            <div className="flex items-center space-x-1.5 text-cyan-400 font-semibold">
-              <Network className="w-3.5 h-3.5" />
-              <span>GNN Tissue Topology</span>
+          <div>
+            <div className="text-[10px] text-slate-400">2D Area</div>
+            <div className="font-mono font-bold text-cyan-400 text-[11px] mt-0.5">
+              {vm.area_mm2.toFixed(0)} mm²
             </div>
-            <p className="text-slate-300 leading-relaxed text-[11px]">{results.gnn_summary}</p>
+          </div>
+          <div>
+            <div className="text-[10px] text-slate-400">3D Volume</div>
+            <div className="font-mono font-bold text-emerald-400 text-[11px] mt-0.5">
+              {vm.estimated_volume_cm3.toFixed(2)} cm³
+            </div>
           </div>
         </div>
       )}
